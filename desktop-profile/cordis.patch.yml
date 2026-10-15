@@ -1,0 +1,35 @@
+# Your patch layer for this dsh profile, applied after every bundle layer:
+# a top-level YAML array of loader patch entries (id-targeted config
+# overrides, disables, and insert lists; `!!js` expressions allowed).
+
+# ── directory picker: use the in-app browser, not the OS dialog ───────────────
+#
+# `dsh-host-directory-picker-auto` resolves once at boot and, on Windows, ALWAYS
+# picks the native backend:
+#
+#   if (facts.platform === "darwin" || facts.platform === "win32") return "native"
+#
+# The native backend drives a Win32 `IFileOpenDialog` from a spawned child
+# process, and in the packaged desktop app that child dies before reporting a
+# result — the UI reports:
+#   win32 folder dialog worker exited before reporting a result
+#
+# The seam documents the swap point: "Pinning an interaction means composing that
+# backend directly." So the adaptive chooser is disabled and the browse pair is
+# inserted in its place. Browse lists directories through Node's standard library
+# and renders the picker inside the app, so it has no child process to lose.
+#
+# Reverting: delete both entries below to get the native chooser back.
+- id: directory-picker
+  disabled: true
+
+- insert:
+    # Host half: serves the `directoryPicker` seam capability.
+    - id: directory-picker-browse
+      name: '@deepseek-ai/dsh-host-directory-picker-browse'
+
+    # Client half: fills ui-workspace's directory-flow holes with the in-app
+    # "Select Workspace Directory" dialog. Both faces ship together, exactly as
+    # the adaptive chooser would have mounted them.
+    - id: ui-directory-picker-browse
+      name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'

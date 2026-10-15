@@ -1,0 +1,31 @@
+# Model sections Agent Desktop appends to <data root>\settings.yaml on first launch
+# (each top-level section only when settings.yaml does not have it yet).
+# No secrets here: the API key is entered in the first-run dialog and stored by
+# DSH in <data root>\.credentials.yaml under the reference DEEPSEEK_API_KEY.
+# Users adjust models later in the main window -> Settings -> Models.
+agent-default-model:
+  provider: deepseek-official
+  model: deepseek-v4-pro
+
+# ── Using an OpenAI-compatible gateway instead ────────────────────────────────
+# Uncomment and adapt the section below, point agent-default-model at it
+# (provider: my-gateway, model: <one of the ids>), and change KEY_REF in
+# packages/dsh-tool-feedback-archive/src/onboarding.tsx to the same apiKeyEnv so
+# the first-run dialog asks for the right key.
+#
+# llm-pi-ai:
+#   providers:
+#     my-gateway:
+#       apiKeyEnv: MY_GATEWAY_API_KEY
+#       api: openai-completions
+#       baseURL: https://llm-gateway.example.com/v1/
+#       defaultInput: [ text, image ]
+#       models:
+#         - id: example-large
+#           name: Example-Large
+#           contextWindow: 200000
+#           maxTokens: 32000
+#         - id: example-small
+#           name: Example-Small
+#           contextWindow: 128000
+#           maxTokens: 16000

@@ -1,0 +1,27 @@
+{
+  "name": "@deepseek-ai/dsh-tool-example",
+  "version": "0.1.0",
+  "description": "Example domain-tool plugin skeleton for Agent Desktop: deterministic project search with an evidence result contract, an explicit SQLite index, and knowledge-base fallback.",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "^0.1.5-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.2"
+  },
+  "files": [
+    "lib/**",
+    "knowledge/**"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2"
+  }
+}

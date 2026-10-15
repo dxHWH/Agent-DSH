@@ -1,0 +1,23 @@
+node_modules/
+dist/
+# Build output of the workspace packages (`npm run build` regenerates them).
+packages/*/lib/
+dist-desktop/
+out/
+*.log
+.DS_Store
+
+# Packaging output (electron-builder).
+release/
+release-*/
+
+# Self-check and diagnostic output. The scripts write these next to the project
+# root; they are results, never inputs.
+*-selfcheck.json
+phase*-*.json
+.portable-test/
+.tmp-*
+
+# Reports written by the project tools (reportDir) when run against this checkout.
+data/reports/
+packages/*/data/reports/

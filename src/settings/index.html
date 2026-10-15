@@ -1,0 +1,1138 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent Desktop 设置</title>
+    <style>
+      :root {
+        --bg: #1a1a1a;
+        --panel: #212121;
+        --border: #333;
+        --text: #e8e8e8;
+        --muted: #9aa0a6;
+        --accent: #4c8dff;
+        --ok: #3fb950;
+        --warn: #d29922;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 1.5rem;
+        font: 13px/1.6 system-ui, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      h1 { font-size: 1.15rem; margin: 0 0 1.25rem; }
+      h2 { font-size: .95rem; margin: 0 0 .5rem; color: var(--text); }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem 1.1rem;
+        margin-bottom: 1rem;
+      }
+      .hint { color: var(--muted); font-size: 12px; margin: .35rem 0 0; }
+      .mode { display: flex; gap: .6rem; align-items: flex-start; padding: .55rem .3rem; border-radius: 6px; cursor: pointer; }
+      .mode:hover { background: #2a2a2a; }
+      .mode input { margin-top: .25rem; accent-color: var(--accent); }
+      .mode-label { font-weight: 500; }
+      .mode-desc { color: var(--muted); font-size: 12px; }
+      dl { display: grid; grid-template-columns: minmax(9rem, auto) 1fr; gap: .3rem .9rem; margin: 0; }
+      dt { color: var(--muted); }
+      dd { margin: 0; word-break: break-all; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+      button {
+        font: inherit;
+        padding: .38rem .8rem;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: #2a2a2a;
+        color: var(--text);
+        cursor: pointer;
+      }
+      button:hover { background: #333; }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      button.primary:hover { filter: brightness(1.1); }
+      .row { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .8rem; }
+      .banner {
+        display: none;
+        padding: .6rem .8rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+        font-size: 12px;
+      }
+      .banner.show { display: block; }
+      .banner.info { background: #1f2d3d; border: 1px solid #2d4a6b; }
+      .banner.error { background: #3d1f1f; border: 1px solid #6b2d2d; }
+      ul.contents { margin: .3rem 0 0; padding-left: 1.1rem; color: var(--muted); font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+      .notescope { color: var(--muted); font-size: 12px; margin: .5rem 0 0; }
+      #index-status-note { white-space: pre-line; }
+      .index-status { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: .6rem; }
+      .pill { display: inline-flex; align-items: center; gap: .35rem; padding: .15rem .55rem; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); }
+      .pill.ready { color: var(--ok); border-color: #2d6b3f; }
+      .pill.stale { color: var(--warn); border-color: #6b572d; }
+      .pill.missing { color: var(--warn); border-color: #6b572d; }
+      .pill.error { color: #f85149; border-color: #6b2d2d; }
+      .pill.building { color: var(--accent); border-color: #2d4a6b; }
+      .pill.unknown { color: var(--muted); }
+      .index-meta { color: var(--muted); font-size: 12px; }
+      .modal-overlay {
+        display: none;
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,.55);
+        z-index: 100;
+        align-items: center; justify-content: center;
+      }
+      .modal-overlay.show { display: flex; }
+      .modal {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.25rem 1.4rem;
+        width: min(420px, calc(100vw - 3rem));
+        box-shadow: 0 8px 40px rgba(0,0,0,.5);
+      }
+      .modal h3 { margin: 0 0 .8rem; font-size: 1rem; }
+      .progress-track {
+        height: 10px;
+        background: #2a2a2a;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: var(--accent);
+        transition: width .15s ease;
+      }
+      .progress-label { margin-top: .5rem; color: var(--muted); font-size: 12px; word-break: break-all; }
+      .modal-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Agent Desktop — 设置</h1>
+
+    <div id="banner" class="banner"></div>
+
+    <section>
+      <h2>数据存放位置</h2>
+      <p class="hint">
+        此文件夹保存 DSH 主目录：你的 API 密钥、设置与会话历史。
+        将其复制到另一台 Windows 机器即可全部迁移。
+      </p>
+      <div id="modes"></div>
+      <div class="row">
+        <button id="apply" class="primary">应用</button>
+        <button id="open-root">打开数据文件夹</button>
+      </div>
+      <p class="notescope">
+        此更改需重启后生效，因为 DSH 在启动时才解析其主目录。
+      </p>
+    </section>
+
+    <section>
+      <h2>MCP 服务器</h2>
+      <p class="hint">
+        配置可供 Agent 调用的外部 Model Context Protocol 服务器
+        （工具名形如 <code>mcp__&lt;server&gt;__&lt;tool&gt;</code>）。每项对应一个
+        agent 预设。
+      </p>
+      <div class="row">
+        <label for="mcp-preset" style="align-self:center">作用域（agent 预设）</label>
+        <select id="mcp-preset" style="font:inherit;padding:.3rem .5rem;background:#2a2a2a;color:var(--text);border:1px solid var(--border);border-radius:6px"></select>
+        <button id="mcp-refresh" title="从磁盘重新加载服务器">刷新</button>
+      </div>
+
+      <div id="mcp-list" style="margin-top:.8rem"></div>
+
+      <div class="row">
+        <button id="mcp-add" class="primary">添加服务器</button>
+      </div>
+
+      <div id="mcp-form" style="display:none;margin-top:.8rem;border-top:1px solid var(--border);padding-top:.8rem"></div>
+
+      <div id="mcp-test" style="display:none;margin-top:.8rem"></div>
+
+      <p class="notescope">更改需重启后生效。</p>
+    </section>
+
+    <section>
+      <h2>工程目录与查询索引</h2>
+      <p class="hint">
+        「项目模式」下项目工具（示例插件 <code>dsh-tool-example</code>）读取的工程根目录，
+        即 agent 预设中 <code>tool-example</code> 插件的 <code>projectRoot</code>。可以是任意文本/代码工程。
+      </p>
+      <div class="row">
+        <label for="project-preset" style="align-self:center">作用域（agent 预设）</label>
+        <select id="project-preset" style="font:inherit;padding:.3rem .5rem;background:#2a2a2a;color:var(--text);border:1px solid var(--border);border-radius:6px"></select>
+        <button id="project-reload" title="从磁盘重新加载工程路径">刷新</button>
+      </div>
+
+      <div style="margin-top:.8rem">
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <input id="project-root" type="text" spellcheck="false"
+            style="flex:1;font:inherit;padding:.42rem .55rem;background:#1a1a1a;color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:ui-monospace,Consolas,monospace;font-size:12px"
+            placeholder="D:/path/to/project" />
+          <button id="project-browse" title="选择文件夹">浏览…</button>
+        </div>
+        <p class="hint" id="project-current" style="margin-top:.35rem"></p>
+        <div class="row">
+          <button id="project-save" class="primary">保存</button>
+        </div>
+        <p class="notescope" id="project-status"></p>
+      </div>
+
+      <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.8rem">
+        <h2 style="font-size:.9rem">查询索引</h2>
+        <p class="hint">
+          预构建的 SQLite 查询索引（工程文本文件的倒排索引），位于工程内的 <code>.agent-index</code> 目录。
+          AI 查询时<strong>不会</strong>自动构建索引：缺失或失效（工程文件有改动）时会直接扫描源文件（较慢）并提示你来这里重建。
+        </p>
+        <div class="index-status" id="index-status">
+          <span class="pill unknown" id="index-pill">未检查</span>
+          <span class="index-meta" id="index-meta"></span>
+        </div>
+        <div class="row">
+          <button id="index-check">检查索引</button>
+          <button id="index-rebuild" class="primary" disabled>重建索引</button>
+        </div>
+        <p class="notescope" id="index-status-note"></p>
+      </div>
+
+      <p class="notescope">更改工程目录需重启后生效。</p>
+    </section>
+
+    <div class="modal-overlay" id="index-modal">
+      <div class="modal">
+        <h3 id="index-modal-title">正在重建查询索引</h3>
+        <div class="progress-track"><div class="progress-fill" id="index-progress-fill"></div></div>
+        <p class="progress-label" id="index-progress-label">正在启动…</p>
+        <div class="modal-actions">
+          <button id="index-modal-cancel">取消重建</button>
+          <button id="index-modal-close" style="display:none">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <section>
+      <h2>企业微信归档（可选）</h2>
+      <p class="hint">
+        点踩「有问题的回答」时，该轮对话默认打包为 ZIP 保存到本机
+        <code>&lt;数据文件夹&gt;\feedback-archive</code>。如需改为上传到企业微信微盘，
+        在 <code>settings.yaml</code> 的 <code>feedback-archive</code> 段设置 <code>backend: wecom</code>，
+        自行安装 <code>wecom-cli</code>，并在此授权机器人。凭证由 wecom-cli 加密保存在本机
+        <code id="wecom-dir">%USERPROFILE%\.config\wecom</code>，本应用不保存也不记录 Secret。
+      </p>
+      <div class="index-status">
+        <span class="pill unknown" id="wecom-pill">检查中…</span>
+        <span class="index-meta" id="wecom-meta"></span>
+      </div>
+      <div style="margin-top:.8rem;display:grid;grid-template-columns:5.5rem 1fr;gap:.45rem .6rem;align-items:center">
+        <label for="wecom-botid">Bot ID</label>
+        <input id="wecom-botid" type="text" spellcheck="false" autocomplete="off"
+          style="font:inherit;padding:.42rem .55rem;background:#1a1a1a;color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:ui-monospace,Consolas,monospace;font-size:12px"
+          placeholder="aib_xxxxxxxxxxxxxxxx" />
+        <label for="wecom-secret">Secret</label>
+        <div style="display:flex;gap:.4rem">
+          <input id="wecom-secret" type="password" spellcheck="false" autocomplete="new-password"
+            style="flex:1;font:inherit;padding:.42rem .55rem;background:#1a1a1a;color:var(--text);border:1px solid var(--border);border-radius:6px;font-family:ui-monospace,Consolas,monospace;font-size:12px"
+            placeholder="向管理员获取，走安全渠道传递" />
+          <button id="wecom-secret-toggle" title="显示 / 隐藏">显示</button>
+        </div>
+      </div>
+      <div class="row">
+        <button id="wecom-save" class="primary">验证并保存</button>
+        <button id="wecom-refresh">刷新状态</button>
+        <button id="wecom-logout">清除本机授权</button>
+      </div>
+      <p class="notescope" id="wecom-status"></p>
+      <p class="notescope">
+        保存时会先在线验证凭证，验证失败不会覆盖现有授权。无需重启，下次点踩即生效。
+      </p>
+    </section>
+
+    <section>
+      <h2>语言</h2>
+      <p class="hint">
+        界面语言由 DSH 自身设置，可随时更改。
+        全新安装时本应用默认以中文启动。
+      </p>
+      <dl>
+        <dt>当前</dt>
+        <dd id="locale-value">—</dd>
+      </dl>
+      <p class="notescope">
+        请在主窗口的 <strong>设置 → 通用 → 语言</strong> 中更改。
+      </p>
+      <div class="row">
+        <button id="open-dsh">打开主窗口</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>诊断信息</h2>
+      <dl id="diagnostics"></dl>
+      <p class="notescope">
+        API 密钥与模型提供方在主窗口的「设置」中配置，写入同一数据文件夹。
+      </p>
+      <div class="row">
+        <button id="restart">重启 Agent Desktop</button>
+      </div>
+    </section>
+
+    <script>
+      const banner = document.getElementById('banner')
+      let view = null
+
+      function showBanner(kind, text) {
+        banner.className = `banner show ${kind}`
+        banner.textContent = text
+      }
+      function hideBanner() {
+        banner.className = 'banner'
+      }
+
+      function renderModes() {
+        const host = document.getElementById('modes')
+        host.innerHTML = ''
+        for (const mode of view.modes) {
+          const label = document.createElement('label')
+          label.className = 'mode'
+          const input = document.createElement('input')
+          input.type = 'radio'
+          input.name = 'dataRootMode'
+          input.value = mode.value
+          input.checked = mode.value === view.current.dataRootMode
+          const box = document.createElement('div')
+          const l = document.createElement('div')
+          l.className = 'mode-label'
+          l.textContent = mode.label
+          const d = document.createElement('div')
+          d.className = 'mode-desc'
+          d.textContent = mode.description
+          box.append(l, d)
+          label.append(input, box)
+          host.append(label)
+        }
+      }
+
+      const LOCALE_LABELS = { zh: '中文', en: 'English' }
+
+      function renderLocale() {
+        const d = view.diagnostics
+        const host = document.getElementById('locale-value')
+        if (d.localeIsAutomatic) {
+          host.textContent = '自动（跟随系统/浏览器语言）'
+          return
+        }
+        host.textContent = LOCALE_LABELS[d.locale] ?? d.locale
+      }
+
+      function renderDiagnostics() {
+        const d = view.diagnostics
+        const host = document.getElementById('diagnostics')
+        host.innerHTML = ''
+        const rows = [
+          ['应用版本', `${d.appVersion}${d.isPackaged ? '' : '（开发版）'}`],
+          ['DSH 版本', d.dshVersion],
+          ['Electron', d.electronVersion],
+          ['Node', d.nodeVersion],
+          ['Chromium', d.chromeVersion],
+          ['主机端口', d.hostPort === null ? '未运行' : String(d.hostPort)],
+          ['语言', d.localeIsAutomatic ? '自动' : d.locale],
+          ['数据根目录模式', d.dataRootMode],
+          ['数据根目录', d.dataRoot],
+          ['Profile', d.profileDir],
+          ['Shell 配置', d.shellConfigPath],
+        ]
+        for (const [k, v] of rows) {
+          const dt = document.createElement('dt')
+          dt.textContent = k
+          const dd = document.createElement('dd')
+          dd.textContent = v
+          host.append(dt, dd)
+        }
+        const dt = document.createElement('dt')
+        dt.textContent = '目录内容'
+        const dd = document.createElement('dd')
+        if (d.contents.length === 0) {
+          dd.textContent = '（空 — 尚未写入任何数据）'
+        } else {
+          const ul = document.createElement('ul')
+          ul.className = 'contents'
+          for (const name of d.contents) {
+            const li = document.createElement('li')
+            li.textContent = name
+            ul.append(li)
+          }
+          dd.append(ul)
+        }
+        host.append(dt, dd)
+      }
+
+      async function load() {
+        view = await window.dshShell.getSettings()
+        renderModes()
+        renderLocale()
+        renderDiagnostics()
+      }
+
+      document.getElementById('apply').addEventListener('click', async () => {
+        const selected = document.querySelector('input[name="dataRootMode"]:checked')
+        if (!selected) return
+        const result = await window.dshShell.setDataRoot(selected.value)
+        if (result.canceled) return
+        if (!result.ok) {
+          showBanner('error', `无法更改数据文件夹：${result.error ?? '未知错误'}`)
+          return
+        }
+        if (result.view) {
+          view = result.view
+          renderModes()
+          renderLocale()
+          renderDiagnostics()
+        }
+        showBanner('info', '已保存。重启 Agent Desktop 后新的位置才会生效。')
+      })
+
+      document.getElementById('open-root').addEventListener('click', async () => {
+        const result = await window.dshShell.openDataRoot()
+        if (!result.ok) showBanner('error', `无法打开文件夹：${result.error}`)
+        else hideBanner()
+      })
+
+      document.getElementById('restart').addEventListener('click', () => {
+        window.dshShell.restart()
+      })
+
+      document.getElementById('open-dsh').addEventListener('click', async () => {
+        const result = await window.dshShell.focusMainWindow()
+        if (!result.ok) showBanner('error', result.error ?? '无法聚焦主窗口。')
+        else hideBanner()
+      })
+
+      // ── MCP servers ──────────────────────────────────────────────────────
+      const mcpState = { presetId: 'project', servers: [], editing: null }
+
+      const mcpListEl = document.getElementById('mcp-list')
+      const mcpFormEl = document.getElementById('mcp-form')
+      const mcpTestEl = document.getElementById('mcp-test')
+      const mcpPresetEl = document.getElementById('mcp-preset')
+
+      async function loadMcpPresets() {
+        const r = await window.dshShell.mcp.listPresets()
+        if (!r.ok || !r.presets) return
+        mcpPresetEl.innerHTML = ''
+        for (const p of r.presets) {
+          const opt = document.createElement('option')
+          opt.value = p.id
+          opt.textContent = p.id + (p.hasConfig ? '' : '（无配置）')
+          mcpPresetEl.append(opt)
+        }
+        if (r.presets.some((p) => p.id === mcpState.presetId)) {
+          mcpPresetEl.value = mcpState.presetId
+        } else if (r.presets.length > 0) {
+          mcpState.presetId = r.presets[0].id
+          mcpPresetEl.value = mcpState.presetId
+        }
+      }
+
+      async function loadMcpServers() {
+        const r = await window.dshShell.mcp.getServers(mcpState.presetId)
+        if (!r.ok) { mcpListEl.textContent = r.error ?? '加载失败'; return }
+        mcpState.servers = r.servers ?? []
+        renderMcpList()
+      }
+
+      function renderMcpList() {
+        mcpListEl.innerHTML = ''
+        if (mcpState.servers.length === 0) {
+          mcpListEl.textContent = '（未配置任何 MCP 服务器）'
+          return
+        }
+        for (const s of mcpState.servers) {
+          const row = document.createElement('div')
+          row.style.cssText = 'display:flex;gap:.5rem;align-items:center;padding:.4rem .3rem;border-bottom:1px solid var(--border)'
+          const info = document.createElement('div')
+          info.style.cssText = 'flex:1;min-width:0'
+          const name = document.createElement('div')
+          name.style.fontWeight = '500'
+          name.textContent = `mcp__${s.serverName}__*`
+          const detail = document.createElement('div')
+          detail.className = 'hint'
+          detail.textContent = s.transport === 'streamable-http' ? `http · ${s.url || ''}` : `stdio · ${s.command || ''}`
+          info.append(name, detail)
+          row.append(info)
+
+          const testBtn = document.createElement('button')
+          testBtn.textContent = '测试'
+          testBtn.addEventListener('click', () => testMcp(s))
+          const editBtn = document.createElement('button')
+          editBtn.textContent = '编辑'
+          editBtn.addEventListener('click', () => showMcpForm(s))
+          const delBtn = document.createElement('button')
+          delBtn.textContent = '删除'
+          delBtn.addEventListener('click', () => removeMcp(s.id))
+          row.append(testBtn, editBtn, delBtn)
+          mcpListEl.append(row)
+        }
+      }
+
+      function transportLabel(t) { return t === 'streamable-http' ? 'http' : 'stdio' }
+
+      function showMcpForm(existing) {
+        mcpState.editing = existing ? { ...existing } : {
+          id: 'mcp-' + Date.now().toString(36),
+          serverName: '', transport: 'streamable-http', url: '', headers: {},
+          command: '', args: [], env: {}, cwd: '', toolCallTimeoutMs: 60000, failOnStartupError: false,
+        }
+        renderMcpForm()
+      }
+
+      function renderMcpForm() {
+        const e = mcpState.editing
+        if (!e) { mcpFormEl.style.display = 'none'; return }
+        mcpFormEl.style.display = 'block'
+        mcpFormEl.innerHTML = ''
+
+        const title = document.createElement('h2')
+        title.textContent = mcpState.servers.some((s) => s.id === e.id) ? '编辑服务器' : '添加服务器'
+        mcpFormEl.append(title)
+
+        const field = (label, el) => {
+          const l = document.createElement('label')
+          l.style.cssText = 'display:block;margin:.4rem 0'
+          l.append(label)
+          l.append(el)
+          return l
+        }
+        const input = (value, placeholder) => {
+          const i = document.createElement('input')
+          i.type = 'text'
+          i.value = value ?? ''
+          i.placeholder = placeholder ?? ''
+          i.style.cssText = 'font:inherit;width:100%;padding:.3rem .5rem;background:#2a2a2a;color:var(--text);border:1px solid var(--border);border-radius:6px'
+          return i
+        }
+
+        const serverNameIn = input(e.serverName, '例如：knowledge')
+        mcpFormEl.append(field('服务器名称（工具前缀 mcp__<name>__）', serverNameIn))
+
+        const transportSel = document.createElement('select')
+        transportSel.style.cssText = 'font:inherit;padding:.3rem .5rem;background:#2a2a2a;color:var(--text);border:1px solid var(--border);border-radius:6px'
+        for (const t of ['streamable-http', 'stdio']) {
+          const o = document.createElement('option')
+          o.value = t
+          o.textContent = transportLabel(t)
+          transportSel.append(o)
+        }
+        transportSel.value = e.transport
+        mcpFormEl.append(field('传输方式', transportSel))
+
+        const urlIn = input(e.url, 'https://host/mcp')
+        const commandIn = input(e.command, 'npx')
+        const argsIn = input((e.args || []).map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' '), '-y some-mcp-server')
+        const timeoutIn = document.createElement('input')
+        timeoutIn.type = 'number'
+        timeoutIn.value = String(e.toolCallTimeoutMs ?? 60000)
+        timeoutIn.style.cssText = 'font:inherit;width:100%;padding:.3rem .5rem;background:#2a2a2a;color:var(--text);border:1px solid var(--border);border-radius:6px'
+
+        const urlField = field('URL', urlIn)
+        const commandField = field('命令', commandIn)
+        const argsField = field('参数（以空格分隔）', argsIn)
+        const timeoutField = field('工具调用超时（毫秒）', timeoutIn)
+
+        mcpFormEl.append(urlField, commandField, argsField, timeoutField)
+
+        const syncTransport = () => {
+          const isHttp = transportSel.value === 'streamable-http'
+          urlField.style.display = isHttp ? 'block' : 'none'
+          commandField.style.display = isHttp ? 'none' : 'block'
+          argsField.style.display = isHttp ? 'none' : 'block'
+        }
+        transportSel.addEventListener('change', syncTransport)
+        syncTransport()
+
+        const row = document.createElement('div')
+        row.className = 'row'
+        const saveBtn = document.createElement('button')
+        saveBtn.className = 'primary'
+        saveBtn.textContent = '保存'
+        saveBtn.addEventListener('click', async () => {
+          const next = {
+            ...mcpState.editing,
+            serverName: serverNameIn.value.trim(),
+            transport: transportSel.value,
+            url: urlIn.value.trim(),
+            command: commandIn.value.trim(),
+            // 空格分隔；含空格的参数用双引号包起来
+            args: (argsIn.value.match(/"[^"]*"|\S+/g) || []).map((a) => a.replace(/^"(.*)"$/, '$1')),
+            toolCallTimeoutMs: Number(timeoutIn.value) || 60000,
+          }
+          const exists = mcpState.servers.some((s) => s.id === next.id)
+          const r = exists
+            ? await window.dshShell.mcp.updateServer(mcpState.presetId, next.id, next)
+            : await window.dshShell.mcp.addServer(mcpState.presetId, next)
+          if (!r.ok) { showBanner('error', r.error ?? '保存失败'); return }
+          hideBanner()
+          mcpState.editing = null
+          mcpFormEl.style.display = 'none'
+          await loadMcpServers()
+        })
+        const cancelBtn = document.createElement('button')
+        cancelBtn.textContent = '取消'
+        cancelBtn.addEventListener('click', () => { mcpState.editing = null; mcpFormEl.style.display = 'none' })
+        row.append(saveBtn, cancelBtn)
+        mcpFormEl.append(row)
+      }
+
+      async function removeMcp(id) {
+        const server = mcpState.servers.find((s) => s.id === id)
+        if (!window.confirm(`确定删除 MCP 服务器「${server?.serverName ?? id}」？此操作会修改该预设的 agent.cordis.yml，重启后生效。`)) return
+        const r = await window.dshShell.mcp.removeServer(mcpState.presetId, id)
+        if (!r.ok) { showBanner('error', r.error ?? '删除失败'); return }
+        hideBanner()
+        await loadMcpServers()
+      }
+
+      function renderMcpTest(result) {
+        mcpTestEl.style.display = 'block'
+        mcpTestEl.innerHTML = ''
+        const head = document.createElement('div')
+        head.style.cssText = 'font-weight:500;margin-bottom:.4rem'
+        if (result.ok) {
+          head.style.color = 'var(--ok)'
+          head.textContent = `✅ 已连接 — ${result.serverInfo ? `${result.serverInfo.name} v${result.serverInfo.version}` : result.serverName}`
+          if (result.protocolVersion) head.textContent += ` · 协议 ${result.protocolVersion}`
+        } else {
+          head.style.color = 'var(--warn)'
+          head.textContent = `❌ ${result.error ?? '连接失败'}`
+        }
+        mcpTestEl.append(head)
+
+        const tools = result.tools ?? []
+        if (tools.length > 0) {
+          const count = document.createElement('div')
+          count.className = 'hint'
+          count.textContent = `${tools.length} 个工具：`
+          mcpTestEl.append(count)
+          const list = document.createElement('div')
+          list.style.cssText = 'max-height:180px;overflow:auto;border:1px solid var(--border);border-radius:6px;padding:.4rem .6rem;margin-top:.3rem;font-family:ui-monospace,Consolas,monospace;font-size:12px'
+          for (const t of tools) {
+            const row = document.createElement('div')
+            row.style.cssText = 'padding:.15rem 0'
+            const name = document.createElement('span')
+            name.style.color = 'var(--accent)'
+            name.textContent = `mcp__${result.serverName}__${t.name}`
+            row.append(name)
+            if (t.description) {
+              const desc = document.createElement('span')
+              desc.className = 'hint'
+              desc.textContent = ` — ${t.description}`
+              row.append(desc)
+            }
+            list.append(row)
+          }
+          mcpTestEl.append(list)
+        }
+      }
+
+      async function testMcp(entry) {
+        mcpTestEl.style.display = 'block'
+        mcpTestEl.innerHTML = ''
+        mcpTestEl.textContent = '正在测试连接…'
+        let r
+        try {
+          r = await window.dshShell.mcp.test(entry)
+        } catch (e) {
+          r = { ok: false, error: String(e) }
+        }
+        renderMcpTest(r)
+      }
+
+      // ── Project directory ───────────────────────────────────────────────
+      const projectState = { presetId: 'project', projectRoot: '' }
+
+      const projectPresetEl = document.getElementById('project-preset')
+      const projectRootEl = document.getElementById('project-root')
+      const projectCurrentEl = document.getElementById('project-current')
+      const projectStatusEl = document.getElementById('project-status')
+
+      async function loadProjectPresets() {
+        const r = await window.dshShell.mcp.listPresets()
+        if (!r.ok || !r.presets) return
+        projectPresetEl.innerHTML = ''
+        for (const p of r.presets) {
+          const opt = document.createElement('option')
+          opt.value = p.id
+          opt.textContent = p.id + (p.hasConfig ? '' : '（无配置）')
+          projectPresetEl.append(opt)
+        }
+        if (r.presets.some((p) => p.id === projectState.presetId)) {
+          projectPresetEl.value = projectState.presetId
+        } else if (r.presets.length > 0) {
+          projectState.presetId = r.presets[0].id
+          projectPresetEl.value = projectState.presetId
+        }
+      }
+
+      async function loadProject() {
+        let r
+        try {
+          r = await window.dshShell.project.get(projectState.presetId)
+        } catch (e) {
+          r = { ok: false, error: String(e) }
+        }
+        if (r.ok) {
+          projectState.projectRoot = r.projectRoot || ''
+          projectRootEl.value = projectState.projectRoot
+          projectCurrentEl.textContent = r.projectRoot
+            ? `当前：${r.projectRoot}`
+            : '（未配置工程目录）'
+          projectStatusEl.textContent = ''
+        } else {
+          projectRootEl.value = ''
+          projectCurrentEl.textContent = ''
+          projectStatusEl.textContent = r.error ?? '加载失败'
+        }
+      }
+
+      async function saveProject() {
+        const value = projectRootEl.value.trim()
+        if (!value) {
+          projectStatusEl.textContent = '工程目录为空。'
+          return
+        }
+        projectStatusEl.textContent = '正在保存…'
+        let r
+        try {
+          r = await window.dshShell.project.set(projectState.presetId, value)
+        } catch (e) {
+          r = { ok: false, error: String(e) }
+        }
+        if (r.ok) {
+          projectState.projectRoot = r.projectRoot || value
+          projectRootEl.value = projectState.projectRoot
+          projectCurrentEl.textContent = `当前：${projectState.projectRoot}`
+          projectStatusEl.textContent = '已保存。重启 Agent Desktop 后新的目录才会生效。'
+          // After rebinding the project, check whether the new directory's index
+          // is stale/missing and prompt the user to rebuild.
+          await checkIndex(projectState.projectRoot, { promptIfStale: true })
+        } else {
+          projectStatusEl.textContent = r.error ?? '保存失败'
+        }
+      }
+
+      // wire project controls
+      document.getElementById('project-reload').addEventListener('click', async () => {
+        await loadProjectPresets()
+        await loadProject()
+      })
+      document.getElementById('project-save').addEventListener('click', saveProject)
+      document.getElementById('project-browse').addEventListener('click', async () => {
+        const r = await window.dshShell.project.browse()
+        if (r.ok && r.path) {
+          projectRootEl.value = r.path
+        }
+      })
+      projectPresetEl.addEventListener('change', async () => {
+        projectState.presetId = projectPresetEl.value
+        await loadProject()
+      })
+
+      // ── Query index (status + rebuild + progress modal) ─────────────────
+      const indexPillEl = document.getElementById('index-pill')
+      const indexMetaEl = document.getElementById('index-meta')
+      const indexStatusNoteEl = document.getElementById('index-status-note')
+      const indexCheckBtn = document.getElementById('index-check')
+      const indexRebuildBtn = document.getElementById('index-rebuild')
+      const indexModalEl = document.getElementById('index-modal')
+      const indexModalTitleEl = document.getElementById('index-modal-title')
+      const indexProgressFillEl = document.getElementById('index-progress-fill')
+      const indexProgressLabelEl = document.getElementById('index-progress-label')
+      const indexModalCloseEl = document.getElementById('index-modal-close')
+      const indexModalCancelEl = document.getElementById('index-modal-cancel')
+      let rebuildingRoot = null
+
+      function setModalSettled(settled) {
+        indexModalCloseEl.style.display = settled ? 'inline-block' : 'none'
+        indexModalCancelEl.style.display = settled ? 'none' : 'inline-block'
+        indexModalCancelEl.disabled = false
+        indexModalCancelEl.textContent = '取消重建'
+        if (settled) rebuildingRoot = null
+      }
+
+      function fmtBytes(n) {
+        if (!n) return ''
+        return n >= 1e9 ? `${(n / 1e9).toFixed(2)} GB` : `${(n / 1e6).toFixed(0)} MB`
+      }
+
+      function fmtTime(sec) {
+        if (!sec) return ''
+        const d = new Date(sec * 1000)
+        const p = (n) => String(n).padStart(2, '0')
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+      }
+
+      /** 覆盖范围说明；旧版本构建缺少的部分直接提示需要重建。 */
+      function coverageNote(cov) {
+        if (!cov) return ''
+        const parts = []
+        if (cov.built_at) parts.push(`构建于 ${fmtTime(Date.parse(cov.built_at) / 1000)}`)
+        if (cov.db_size_bytes) parts.push(fmtBytes(cov.db_size_bytes))
+        if (cov.scope) parts.push(cov.scope)
+        return parts.join(' · ')
+      }
+
+      const INDEX_STATE_LABELS = {
+        ready: '就绪',
+        building: '构建中…',
+        stale: '已失效（工程已变更）',
+        missing: '缺失',
+        error: '错误',
+      }
+
+      function renderIndexPill(state, meta) {
+        const cls = state && INDEX_STATE_LABELS[state] ? state : 'unknown'
+        indexPillEl.className = `pill ${cls}`
+        indexPillEl.textContent = state && INDEX_STATE_LABELS[state] ? INDEX_STATE_LABELS[state] : '未检查'
+        indexMetaEl.textContent = meta ?? ''
+        indexRebuildBtn.disabled = !state || (state === 'building')
+      }
+
+      function indexStatusMeta(status) {
+        if (!status) return ''
+        const parts = []
+        if (status.generation) parts.push(String(status.generation))
+        if (status.source_count) parts.push(`${status.source_count.toLocaleString()} 个文件`)
+        if (status.line_count) parts.push(`${status.line_count.toLocaleString()} 行`)
+        if (status.term_count) parts.push(`${status.term_count.toLocaleString()} 个词条`)
+        return parts.join(' · ')
+      }
+
+      function nowStamp() {
+        const d = new Date()
+        const p = (n) => String(n).padStart(2, '0')
+        return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+      }
+
+      async function checkIndex(projectRoot, opts = {}) {
+        const { promptIfStale = false, showFeedback = false } = opts
+        if (!projectRoot) {
+          if (showFeedback) {
+            renderIndexPill('unknown', '尚未绑定工程目录')
+            indexStatusNoteEl.textContent = '请先在「工程目录」中绑定工程，再检查索引。'
+          }
+          return null
+        }
+
+        if (showFeedback) {
+          indexCheckBtn.disabled = true
+          indexCheckBtn.textContent = '检查中…'
+        }
+
+        let r
+        try {
+          r = await window.dshShell.project.indexStatus(projectRoot)
+        } catch (e) {
+          r = { ok: false, error: String(e) }
+        }
+
+        if (showFeedback) {
+          indexCheckBtn.disabled = false
+          indexCheckBtn.textContent = '检查索引'
+        }
+
+        if (!r.ok || !r.snapshot) {
+          renderIndexPill('error', r.error ?? '读取索引失败')
+          indexStatusNoteEl.textContent = showFeedback ? `❌ 检查失败：${r.error ?? '未知错误'}` : ''
+          return null
+        }
+        const snap = r.snapshot
+        const status = snap.status
+        const state = status ? status.state : null
+
+        if (snap.building) {
+          renderIndexPill('building', '正在重建…')
+        } else if (status) {
+          renderIndexPill(state, indexStatusMeta(status))
+        } else {
+          renderIndexPill('error', snap.error ?? '未知')
+        }
+
+        if (snap.error && !status) {
+          indexStatusNoteEl.textContent = snap.error
+        } else if (snap.indexDir) {
+          const cov = coverageNote(snap.coverage)
+          const dirNote = `${cov ? cov + '\n' : ''}索引目录：${snap.indexDir}`
+          if (showFeedback) {
+            const label = INDEX_STATE_LABELS[state] ?? state ?? '未知'
+            indexStatusNoteEl.textContent = `✅ 已检查（${nowStamp()}）：${label} · ${dirNote}`
+          } else {
+            indexStatusNoteEl.textContent = dirNote
+          }
+        }
+
+        if (promptIfStale && (state === 'stale' || state === 'missing')) {
+          const go = window.confirm(
+            `绑定的工程已变更，其查询索引${state === 'stale' ? '已失效' : '缺失'}。\n\n` +
+            `是否现在重建索引？（之后也可通过「重建索引」按钮操作。）`,
+          )
+          if (go) startRebuild(projectRoot)
+        }
+
+        return status
+      }
+
+      function openIndexModal(title) {
+        indexModalTitleEl.textContent = title
+        indexProgressFillEl.style.width = '0%'
+        indexProgressLabelEl.textContent = '正在启动…'
+        setModalSettled(false)
+        indexModalEl.classList.add('show')
+      }
+
+      function closeIndexModal() {
+        indexModalEl.classList.remove('show')
+      }
+
+      function setIndexProgress(completed, total, label) {
+        const pct = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0
+        indexProgressFillEl.style.width = `${pct}%`
+        indexProgressLabelEl.textContent = label ?? `${completed} / ${total}`
+      }
+
+      async function startRebuild(projectRoot) {
+        openIndexModal('正在重建查询索引')
+        rebuildingRoot = projectRoot
+        let r
+        try {
+          r = await window.dshShell.project.indexRebuild(projectRoot)
+        } catch (e) {
+          r = { ok: false, error: String(e) }
+        }
+        if (!r.ok) {
+          setIndexProgress(0, 0, `无法启动重建：${r.error ?? '未知错误'}`)
+          indexModalTitleEl.textContent = '重建失败'
+          setModalSettled(true)
+        }
+      }
+
+      indexModalCancelEl.addEventListener('click', async () => {
+        const root = rebuildingRoot ?? projectState.projectRoot
+        if (!root) return
+        indexModalCancelEl.disabled = true
+        indexModalCancelEl.textContent = '正在取消…'
+        const r = await window.dshShell.project.indexCancel(root).catch((e) => ({ ok: false, error: String(e) }))
+        if (!r.ok) {
+          indexModalCancelEl.disabled = false
+          indexModalCancelEl.textContent = '取消重建'
+          indexProgressLabelEl.textContent = `取消失败：${r.error ?? '未知错误'}`
+        }
+      })
+
+      const elapsedLabel = (p) => (p.elapsed ? ` · 已用 ${Math.round(p.elapsed)} 秒` : '')
+
+      // Subscribe to rebuild progress events pushed from the main process.
+      window.dshShell.project.onIndexProgress((payload) => {
+        const p = payload || {}
+        if (p.phase === 'building') {
+          indexModalEl.classList.add('show')
+          indexModalTitleEl.textContent = '正在重建查询索引'
+          setIndexProgress(p.completed ?? 0, p.total ?? 0, (p.current
+            ? `正在索引 ${p.current}（${p.completed} / ${p.total}）`
+            : `${p.completed} / ${p.total}`) + elapsedLabel(p))
+          renderIndexPill('building', '正在重建…')
+          if (!rebuildingRoot) { rebuildingRoot = p.projectRoot; setModalSettled(false) }
+        } else if (p.phase === 'finalizing') {
+          indexModalEl.classList.add('show')
+          indexProgressFillEl.style.width = '100%'
+          indexProgressLabelEl.textContent = `${p.current || '正在收尾'}${elapsedLabel(p)}`
+        } else if (p.phase === 'done') {
+          indexProgressFillEl.style.width = '100%'
+          const status = p.status
+          if (status && status.state === 'ready') {
+            indexProgressLabelEl.textContent = `完成（${Math.round(p.elapsed ?? 0)} 秒）— ${indexStatusMeta(status) || '索引就绪'}`
+            indexModalTitleEl.textContent = '重建完成'
+          } else {
+            indexProgressLabelEl.textContent = status?.error_message ?? '重建结束'
+            indexModalTitleEl.textContent = '重建结束'
+          }
+          setModalSettled(true)
+          renderIndexPill(status?.state ?? 'error', indexStatusMeta(status))
+          indexStatusNoteEl.textContent = coverageNote(p.coverage)
+        } else if (p.phase === 'cancelled') {
+          indexProgressLabelEl.textContent = '已取消。之前的索引（如有）保持可用。'
+          indexModalTitleEl.textContent = '重建已取消'
+          setModalSettled(true)
+          checkIndex(projectState.projectRoot)
+        } else if (p.phase === 'error') {
+          indexProgressLabelEl.textContent = p.error ?? '重建失败'
+          indexModalTitleEl.textContent = '重建失败'
+          setModalSettled(true)
+          renderIndexPill('error', p.error)
+        }
+      })
+
+      // wire index controls
+      indexCheckBtn.addEventListener('click', async () => {
+        await checkIndex(projectState.projectRoot, { showFeedback: true })
+      })
+      indexRebuildBtn.addEventListener('click', async () => {
+        await startRebuild(projectState.projectRoot)
+      })
+      indexModalCloseEl.addEventListener('click', closeIndexModal)
+
+      // wire MCP controls
+      document.getElementById('mcp-refresh').addEventListener('click', async () => {
+        await loadMcpPresets()
+        await loadMcpServers()
+      })
+      document.getElementById('mcp-add').addEventListener('click', () => showMcpForm(null))
+      mcpPresetEl.addEventListener('change', async () => {
+        mcpState.presetId = mcpPresetEl.value
+        mcpState.editing = null
+        mcpFormEl.style.display = 'none'
+        await loadMcpServers()
+      })
+
+      load().catch((error) => showBanner('error', `无法加载设置：${error}`))
+      // Load MCP panel data after the main settings view.
+      ;(async () => {
+        try {
+          await loadMcpPresets()
+          await loadMcpServers()
+        } catch (e) {
+          console.error('MCP panel load failed:', e)
+        }
+      })()
+      // Load project-directory panel data after the main settings view.
+      ;(async () => {
+        try {
+          await loadProjectPresets()
+          await loadProject()
+          // Also load the index status for the current project root.
+          await checkIndex(projectState.projectRoot)
+        } catch (e) {
+          console.error('Project panel load failed:', e)
+        }
+      })()
+
+      // ── 企业微信归档机器人 ──
+      const wecomEl = {
+        pill: document.getElementById('wecom-pill'),
+        meta: document.getElementById('wecom-meta'),
+        dir: document.getElementById('wecom-dir'),
+        botId: document.getElementById('wecom-botid'),
+        secret: document.getElementById('wecom-secret'),
+        toggle: document.getElementById('wecom-secret-toggle'),
+        save: document.getElementById('wecom-save'),
+        refresh: document.getElementById('wecom-refresh'),
+        logout: document.getElementById('wecom-logout'),
+        status: document.getElementById('wecom-status'),
+      }
+      const WECOM_SOURCE = { settings: '设置指定', env: '环境变量 WECOM_CLI', 'npm-global': 'npm 全局安装', dev: '开发依赖' }
+
+      // 设置页/preload 每次开窗都会重新加载，而主进程只在启动时注册 IPC；
+      // 升级后未重启时会出现 "No handler registered"，这里翻译成可操作的提示。
+      function wecomErrorText(e) {
+        const s = String(e?.message ?? e)
+        if (/No handler registered/i.test(s)) return '主程序尚未加载此功能：请完全退出 Agent Desktop（Ctrl+Q 或托盘「退出」）后重新打开'
+        return s.replace(/^Error invoking remote method '[^']+':\s*(Error:\s*)?/, '')
+      }
+
+      function setWecomBusy(busy) {
+        for (const b of [wecomEl.save, wecomEl.refresh, wecomEl.logout]) b.disabled = busy
+        wecomEl.botId.disabled = busy
+        wecomEl.secret.disabled = busy
+      }
+
+      async function loadWecom() {
+        wecomEl.pill.className = 'pill unknown'
+        wecomEl.pill.textContent = '检查中…'
+        let r
+        try {
+          r = await window.dshShell.wecom.status()
+        } catch (e) {
+          wecomEl.pill.className = 'pill error'
+          wecomEl.pill.textContent = '不可用'
+          wecomEl.meta.textContent = wecomErrorText(e)
+          return
+        }
+        wecomEl.save.disabled = false
+        if (r.configDir) wecomEl.dir.textContent = r.configDir
+        if (!r.ok) {
+          wecomEl.pill.className = 'pill error'
+          wecomEl.pill.textContent = '不可用'
+          wecomEl.meta.textContent = r.error ?? ''
+          wecomEl.save.disabled = true
+          return
+        }
+        const src = WECOM_SOURCE[r.cli.source] ?? r.cli.source
+        if (r.authorized) {
+          wecomEl.pill.className = 'pill ready'
+          wecomEl.pill.textContent = '已授权'
+          wecomEl.meta.textContent = `Bot ID ${r.botId ?? '?'} · wecom-cli：${src}`
+          if (!wecomEl.botId.value) wecomEl.botId.value = r.botId ?? ''
+        } else {
+          wecomEl.pill.className = 'pill missing'
+          wecomEl.pill.textContent = '未授权'
+          wecomEl.meta.textContent = `backend: wecom 时点踩归档将无法上传 · wecom-cli：${src}`
+        }
+        wecomEl.meta.title = r.cli.cmd
+      }
+
+      wecomEl.toggle.addEventListener('click', () => {
+        const show = wecomEl.secret.type === 'password'
+        wecomEl.secret.type = show ? 'text' : 'password'
+        wecomEl.toggle.textContent = show ? '隐藏' : '显示'
+      })
+
+      wecomEl.save.addEventListener('click', async () => {
+        const botId = wecomEl.botId.value.trim()
+        const secret = wecomEl.secret.value.trim()
+        if (!botId || !secret) { wecomEl.status.textContent = '请同时填写 Bot ID 和 Secret。'; return }
+        setWecomBusy(true)
+        wecomEl.status.textContent = '正在向企业微信验证凭证…（约 5–15 秒）'
+        try {
+          const r = await window.dshShell.wecom.authorize(botId, secret)
+          if (r.ok) {
+            wecomEl.secret.value = ''
+            wecomEl.status.textContent = `授权成功：${r.botId}。下次点踩即可上传。`
+          } else {
+            wecomEl.status.textContent = `授权失败：${r.error}${r.errcode && r.errcode !== 853000 ? `（errcode ${r.errcode}）` : ''}。现有授权未改动。`
+          }
+        } catch (e) {
+          wecomEl.status.textContent = `授权未执行：${wecomErrorText(e)}。现有授权未改动。`
+        } finally {
+          setWecomBusy(false)
+          await loadWecom()
+        }
+      })
+
+      wecomEl.refresh.addEventListener('click', () => { wecomEl.status.textContent = ''; loadWecom() })
+
+      wecomEl.logout.addEventListener('click', async () => {
+        if (!confirm('清除本机的企业微信机器人授权？清除后点踩归档将无法上传，需重新填写 Bot ID / Secret。')) return
+        setWecomBusy(true)
+        try {
+          const r = await window.dshShell.wecom.logout()
+          wecomEl.status.textContent = r.ok ? '已清除（旧凭证备份为 .bak）。' : `清除失败：${r.error}`
+        } catch (e) {
+          wecomEl.status.textContent = `清除未执行：${wecomErrorText(e)}`
+        } finally {
+          setWecomBusy(false)
+          await loadWecom()
+        }
+      })
+
+      loadWecom().catch((e) => {
+        wecomEl.pill.className = 'pill error'
+        wecomEl.pill.textContent = '检查失败'
+        wecomEl.meta.textContent = String(e)
+      })
+    </script>
+  </body>
+</html>
